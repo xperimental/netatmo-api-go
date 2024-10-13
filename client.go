@@ -20,6 +20,9 @@ var (
 	ErrNotAuthenticated = errors.New("no token available")
 )
 
+// TokenUpdateFunc defines a function that can act as a callback for a token update.
+type TokenUpdateFunc func(new *oauth2.Token)
+
 // Config is used to specify credential to Netatmo API
 type Config struct {
 	// ClientID from netatmo app registration at http://dev.netatmo.com/dev/listapps
@@ -30,12 +33,13 @@ type Config struct {
 
 // Client use to make request to Netatmo API
 type Client struct {
-	oauth      *oauth2.Config
-	httpClient *http.Client
+	oauth          *oauth2.Config
+	httpClient     *http.Client
+	updateCallback TokenUpdateFunc
 }
 
 // NewClient creates an unauthenticated NetAtmo API client.
-func NewClient(config Config) *Client {
+func NewClient(config Config, tokenCallback TokenUpdateFunc) *Client {
 	oauth := &oauth2.Config{
 		ClientID:     config.ClientID,
 		ClientSecret: config.ClientSecret,
@@ -47,7 +51,8 @@ func NewClient(config Config) *Client {
 	}
 
 	return &Client{
-		oauth: oauth,
+		oauth:          oauth,
+		updateCallback: tokenCallback,
 	}
 }
 
@@ -64,7 +69,7 @@ func (c *Client) Exchange(ctx context.Context, code, state string) error {
 		return err
 	}
 
-	c.httpClient = c.oauth.Client(ctx, token)
+	c.InitWithToken(ctx, token)
 	return nil
 }
 
@@ -79,7 +84,20 @@ func (c *Client) CurrentToken() (*oauth2.Token, error) {
 	return source.Token()
 }
 
+func (c *Client) tokenSource(ctx context.Context, token *oauth2.Token) oauth2.TokenSource {
+	source := c.oauth.TokenSource(ctx, token)
+	if c.updateCallback == nil {
+		return source
+	}
+
+	return &callbackTokenSource{
+		callback:    c.updateCallback,
+		tokenSource: c.oauth.TokenSource(ctx, token),
+		lastToken:   token,
+	}
+}
+
 // InitWithToken initializes the client with an existing token.
 func (c *Client) InitWithToken(ctx context.Context, token *oauth2.Token) {
-	c.httpClient = c.oauth.Client(ctx, token)
+	c.httpClient = oauth2.NewClient(ctx, c.tokenSource(ctx, token))
 }
