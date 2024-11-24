@@ -6,6 +6,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// ErrorResponse contains information about an error.
+type ErrorResponse struct {
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
 // TokenResponse contains the authentication token received from the API
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
