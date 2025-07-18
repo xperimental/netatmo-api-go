@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	baseURL   = "https://api.netatmo.net/"
+	baseURL   = "https://api.netatmo.com/"
 	authURL   = baseURL + "oauth2/authorize"
 	tokenURL  = baseURL + "oauth2/token"
 	deviceURL = baseURL + "/api/getstationsdata"
